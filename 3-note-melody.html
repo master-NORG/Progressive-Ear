@@ -500,6 +500,18 @@ const KEY_OPTS = [{
 }];
 const DEFAULT_KEYS = [0, 2, 3, 4, -1, -2]; // C D A E F Bb
 
+// Melody repeat behaviour (note 1 === note 3)
+const REPEAT_MODES = [{
+  id: "allowed",
+  label: "Repeats: allowed"
+}, {
+  id: "less",
+  label: "Repeats: less often"
+}, {
+  id: "none",
+  label: "Repeats: off"
+}];
+
 // ═══════════════════════════════════════════════════════════
 // INTERVALS  (semitone sizes — used now as a melodic-step filter)
 // ═══════════════════════════════════════════════════════════
@@ -664,6 +676,41 @@ function chooseKey(ct, tones, allowed) {
   return best;
 }
 
+// Spell the diatonic chord at scale degree `deg` (1-7) of key `n`, stacking
+// diatonic thirds — fully in-key, so no accidentals beyond the signature.
+function spellDiatonic(n, deg, size) {
+  const ks = keySigFromCount(n);
+  const tonicLetter = "CDEFGAB".indexOf(keyName(n)[0]);
+  const mk = step => {
+    const li = (tonicLetter + step) % 7;
+    return {
+      letterIdx: li,
+      acc: ks[li],
+      pc: mod12(LETTER_VAL[li] + ks[li])
+    };
+  };
+  const steps = size === 4 ? [0, 2, 4, 6] : [0, 2, 4];
+  return steps.map(s => mk(deg - 1 + s));
+}
+// Pitch class of scale degree `deg` in key `n`.
+function degPc(n, deg) {
+  const ks = keySigFromCount(n);
+  const tonicLetter = "CDEFGAB".indexOf(keyName(n)[0]);
+  const li = (tonicLetter + (deg - 1)) % 7;
+  return mod12(LETTER_VAL[li] + ks[li]);
+}
+// Diatonic scale degrees (1-7) at which each chord type occurs in a major key.
+const DIATONIC_DEG = {
+  maj: [1, 4, 5],
+  min: [2, 3, 6],
+  dim: [7],
+  maj7: [1, 4],
+  dom7: [5],
+  min7: [2, 3, 6],
+  halfdim: [7]
+  // dim7 has no diatonic home — handled as a special (accidental-bearing) case.
+};
+
 // ═══════════════════════════════════════════════════════════
 // VOICING + GENERATION
 // ═══════════════════════════════════════════════════════════
@@ -726,7 +773,25 @@ function validMelodies(pitches, allowed) {
   }
   return out;
 }
-function generate(chords, invIdxs, allowed, dirs, keys) {
+
+// Choose a melody from the valid list, honoring the repeat-note mode.
+// A "repeat" melody is one where note 1 === note 3 (an up-down/down-up shape).
+function pickMelody(mels, mode) {
+  if (mode === "none") {
+    const D = mels.filter(m => m[0] !== m[2]);
+    return D.length ? pick(D) : null; // null → caller tries another voicing
+  }
+  if (mode === "less") {
+    const R = mels.filter(m => m[0] === m[2]);
+    const D = mels.filter(m => m[0] !== m[2]);
+    if (!R.length) return pick(D);
+    if (!D.length) return pick(R);
+    const T = R.length / (2 * (R.length + D.length)); // half the natural repeat rate
+    return Math.random() < T ? pick(R) : pick(D);
+  }
+  return pick(mels); // allowed
+}
+function generate(chords, invIdxs, allowed, dirs, keys, repeatMode) {
   for (let t = 0; t < 400; t++) {
     const ct = pick(chords);
     const validInv = invIdxs.filter(idx => idx < ct.offs.length);
@@ -739,12 +804,30 @@ function generate(chords, invIdxs, allowed, dirs, keys) {
     const minRoot = LO - sp.lo - Math.min(0, shift);
     const maxRoot = HI - sp.hi - Math.max(0, shift);
     if (maxRoot < minRoot) continue;
-    const rootMidi = minRoot + Math.floor(Math.random() * (maxRoot - minRoot + 1));
+    let rootMidi,
+      forcedKey = null,
+      forcedDeg = null;
+    const degs = DIATONIC_DEG[ct.id];
+    if (degs) {
+      // Diatonic chord → place it at its scale degree within a selected key.
+      forcedKey = pick(keys);
+      forcedDeg = pick(degs);
+      const wantPc = degPc(forcedKey, forcedDeg);
+      const opts = [];
+      for (let m = minRoot; m <= maxRoot; m++) if (mod12(m) === wantPc) opts.push(m);
+      if (!opts.length) continue;
+      rootMidi = pick(opts);
+    } else {
+      // Special case (dim7): free root, key chosen to keep accidentals lowest.
+      rootMidi = minRoot + Math.floor(Math.random() * (maxRoot - minRoot + 1));
+    }
     const pitches = voicePitches(ct, idx, rootMidi); // chord block
     const melPool = pitches.map(p => p + shift); // chord tones, shifted an octave
     const mels = validMelodies(melPool, allowed);
     if (!mels.length) continue;
-    return finalize(ct, idx, rootMidi, pick(mels), pitches, dir, keys);
+    const mel = pickMelody(mels, repeatMode);
+    if (!mel) continue; // "none" with no distinct option here
+    return finalize(ct, idx, rootMidi, mel, pitches, dir, keys, forcedKey, forcedDeg);
   }
   return null;
 }
@@ -782,14 +865,14 @@ function buildAbc(pitches, mel, byPc, keySig, kName) {
   }
   return "X:1\nT:\nM:3/4\nL:1/4\n" + score + "\nK:" + kName + "\nV:1 clef=" + c1 + "\nV:2 clef=" + c2 + "\n[V:1] " + v1 + " |]\n[V:2] " + v2 + " |]";
 }
-function finalize(ct, idx, rootMidi, mel, pitches, dir, keys) {
+function finalize(ct, idx, rootMidi, mel, pitches, dir, keys, forcedKey, forcedDeg) {
   const rootPc = mod12(rootMidi);
-  const tones = spellChord(rootPc, ct);
+  const tones = forcedKey != null ? spellDiatonic(forcedKey, forcedDeg, ct.size) : spellChord(rootPc, ct);
   const byPc = {};
   tones.forEach(t => byPc[t.pc] = t);
   const nm = s => LETTER_NAME[s.letterIdx] + accDisplay(s.acc);
   const rootName = nm(tones[0]);
-  const sigN = chooseKey(ct, tones, keys);
+  const sigN = forcedKey != null ? forcedKey : chooseKey(ct, tones, keys);
   const keySig = keySigFromCount(sigN);
   const kName = keyName(sigN);
   const sigText = sigN === 0 ? "no sharps/flats" : sigN > 0 ? sigN + (sigN === 1 ? " sharp" : " sharps") : -sigN + (sigN === -1 ? " flat" : " flats");
@@ -827,15 +910,15 @@ function App() {
   const [playing, setPlaying] = useState(false);
   const [snd, setSnd] = useState("loading");
   const [size3, setSize3] = useState(true);
-  const [size4, setSize4] = useState(true);
+  const [size4, setSize4] = useState(false);
   const [invOn, setInvOn] = useState({
     root: true,
-    inv1: true,
-    inv2: true,
-    inv3: true
+    inv1: false,
+    inv2: false,
+    inv3: false
   });
   const [chordBelow, setChordBelow] = useState(true); // chord below → melody an octave above
-  const [chordAbove, setChordAbove] = useState(true); // chord above → melody an octave below
+  const [chordAbove, setChordAbove] = useState(false); // chord above → melody an octave below
   const [ivOn, setIvOn] = useState(() => {
     const o = {};
     INTERVALS.forEach(i => o[i.id] = true);
@@ -848,6 +931,7 @@ function App() {
   });
   const [speedUp, setSpeedUp] = useState(false);
   const [sightRead, setSightRead] = useState(false);
+  const [repeatMode, setRepeatMode] = useState("less");
   const instRef = useRef(null);
   const fbRef = useRef(null);
   const staffRef = useRef(null);
@@ -1049,12 +1133,19 @@ function App() {
   // ── Handlers ───────────────────────────────────────────────
   const handleNew = useCallback(() => {
     stop();
-    const it = generate(enabledChords, enabledInvIdxs, allowedSemis, dirs, allowedKeys);
+    let it = generate(enabledChords, enabledInvIdxs, allowedSemis, dirs, allowedKeys, repeatMode);
+    if (!it && repeatMode === "none")
+      // no all-distinct melody anywhere → relax
+      it = generate(enabledChords, enabledInvIdxs, allowedSemis, dirs, allowedKeys, "allowed");
     if (!it) return;
     setItem(it);
     setRevealed(false);
     if (!sightRead) play(it, bpm, speedUp);
-  }, [stop, play, bpm, size3, size4, invOn, ivOn, speedUp, possibleKey, chordBelow, chordAbove, sightRead, keyOn]);
+  }, [stop, play, bpm, size3, size4, invOn, ivOn, speedUp, possibleKey, chordBelow, chordAbove, sightRead, keyOn, repeatMode]);
+  const cycleRepeat = () => setRepeatMode(m => {
+    const i = REPEAT_MODES.findIndex(x => x.id === m);
+    return REPEAT_MODES[(i + 1) % REPEAT_MODES.length].id;
+  });
   const toggleSize3 = () => setSize3(v => !v && !size4 ? v : !v);
   const toggleSize4 = () => setSize4(v => !v && !size3 ? v : !v);
   const toggleKey = n => setKeyOn(prev => {
@@ -1355,7 +1446,21 @@ function App() {
       background: sightRead ? "#e6f0fa" : "transparent",
       color: sightRead ? "#1d4e7e" : "#9a8a75"
     }
-  }, "👓 Sight-Reading ", sightRead ? "On" : "Off")), sightRead && /*#__PURE__*/React.createElement("div", {
+  }, "👓 Sight-Reading ", sightRead ? "On" : "Off"), /*#__PURE__*/React.createElement("button", {
+    onClick: cycleRepeat,
+    style: {
+      padding: "6px 13px",
+      fontSize: 12,
+      fontWeight: 600,
+      borderRadius: 8,
+      border: "1.5px solid",
+      cursor: "pointer",
+      fontFamily: "'DM Sans',system-ui,sans-serif",
+      borderColor: repeatMode === "allowed" ? "#ddd5c8" : repeatMode === "less" ? "#c8922a" : "#3f7d5a",
+      background: repeatMode === "allowed" ? "transparent" : repeatMode === "less" ? "#fdf3e3" : "#e7f3ec",
+      color: repeatMode === "allowed" ? "#9a8a75" : repeatMode === "less" ? "#7a5010" : "#236046"
+    }
+  }, "🔁 ", REPEAT_MODES.find(x => x.id === repeatMode).label)), sightRead && /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 7,
       fontSize: 10.5,
