@@ -5,14 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🎵 Ear Training Tools</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Music&display=swap" rel="stylesheet">
   <style>
+    /* Palette — cool porcelain (a light descendant of the original navy), amber-gold accent kept
+       --paper-top   #f9fafb   bright cool white (top)
+       --paper-bot   #e8ecf2   pale blue-gray (bottom)
+       --ink         #1c2230   headings
+       --body        #2c333f   body copy
+       --gold        #c8922a   accent: clef, dividers, arrows, beta link
+       --gold-deep   #9a6a16   small uppercase labels
+       --card        #ffffff   card surface
+       --muted       #7c8595   footer / secondary
+    */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; }
 
     body {
-      background: #0b0c14;
-      color: #d0c8bc;
+      background: radial-gradient(120% 80% at 50% 0%, #f9fafb 0%, #eef1f5 55%, #e8ecf2 100%);
+      background-attachment: fixed;
+      color: #2c333f;
       font-family: 'DM Sans', sans-serif;
       min-height: 100vh;
       display: flex;
@@ -27,35 +38,43 @@
       width: 100%;
     }
 
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .clef {
+      font-family: 'Noto Music', serif;
+      font-size: clamp(2.6rem, 7vw, 3.6rem);
+      line-height: 1;
+      color: #c8922a;
+      flex: 0 0 auto;
+      /* optical centering against the title text — nudge if needed */
+      transform: translateY(0.04em);
+    }
+
     .title {
       font-family: 'Cormorant Garamond', serif;
       font-size: clamp(2rem, 6vw, 3rem);
       font-weight: 700;
-      color: #f0e8dc;
+      color: #1c2230;
       letter-spacing: 0.01em;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      font-weight: 500;
-      color: #c8922a;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 32px;
+      line-height: 1.1;
     }
 
     .divider {
       width: 48px;
       height: 2px;
-      background: linear-gradient(90deg, #c8922a, transparent);
+      background: linear-gradient(90deg, #c8922a, rgba(200,146,42,0));
       margin-bottom: 32px;
     }
 
     .blurb {
       font-size: 15px;
       line-height: 1.75;
-      color: #b0a89c;
+      color: #2c333f;
       margin-bottom: 48px;
     }
 
@@ -63,12 +82,24 @@
       margin-top: 12px;
     }
 
+    .blurb a {
+      color: #a8741a;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(200,146,42,0.4);
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .blurb a:hover {
+      color: #c8922a;
+      border-bottom-color: #c8922a;
+    }
+
     .tools-label {
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: #5a5650;
+      color: #9a6a16;
       margin-bottom: 14px;
     }
 
@@ -84,26 +115,44 @@
       align-items: center;
       justify-content: space-between;
       padding: 18px 22px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(200,146,42,0.2);
+      background: #ffffff;
+      border: 1px solid rgba(28,34,48,0.10);
       border-radius: 8px;
-      color: #e0d8cc;
+      color: #2c333f;
       font-size: 15px;
       font-weight: 500;
       text-decoration: none;
-      transition: background 0.2s, border-color 0.2s, color 0.2s;
+      box-shadow: 0 1px 2px rgba(24,34,56,0.05), 0 6px 18px rgba(24,34,56,0.06);
+      transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
     }
 
     .tool-list a:hover {
-      background: rgba(200,146,42,0.08);
+      background: rgba(200,146,42,0.06);
       border-color: rgba(200,146,42,0.55);
-      color: #f0e8dc;
+      color: #1c2230;
+      box-shadow: 0 2px 4px rgba(24,34,56,0.07), 0 10px 26px rgba(24,34,56,0.09);
+      transform: translateY(-1px);
+    }
+
+    .tool-list a:focus-visible {
+      outline: 2px solid #c8922a;
+      outline-offset: 2px;
+    }
+
+    /* Beta tool: gold label to signal it's in progress, stays gold on hover */
+    .tool-list a.beta { color: #c8922a; }
+    .tool-list a.beta:hover { color: #c8922a; }
+    .tool-list a.beta .meta { color: rgba(200,146,42,0.75); }
+
+    .tool-list a .meta {
+      font-weight: 400;
+      color: #7c8595;
     }
 
     .tool-list a .arrow {
       color: #c8922a;
       font-size: 18px;
-      opacity: 0.7;
+      opacity: 0.75;
       transition: opacity 0.2s, transform 0.2s;
     }
 
@@ -115,18 +164,25 @@
     footer {
       margin-top: 56px;
       font-size: 12px;
-      color: #3a3830;
+      color: #7c8595;
       text-align: center;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 class="title">🎵 Custom Progressive Ear Training Tools</h1>
+    <div class="title-row">
+      <span class="clef" aria-hidden="true">&#x1D11E;</span>
+      <h1 class="title">Custom Progressive Ear Training Tools</h1>
+    </div>
     <div class="divider"></div>
 
     <div class="blurb">
-      <p>Welcome! These are custom ear training tools I built for my own studies. After finding that the available apps were all falling short in one way or another, I decided to make my own with <a href="https://claude.ai" style="color:#c8922a;text-decoration:none;">claude.ai</a>. The tools are also based on suggestions from my piano teacher.</p>
+      <p>Welcome! These are custom ear training tools I built for my own studies. After finding that the available apps were all falling short in one way or another, I decided to make my own with <a href="https://claude.ai">claude.ai</a>. The tools are also based on suggestions from my piano teacher.</p>
       <p>For now these tools are simple — limited in rhythmic and harmonic complexity. I'll update them or add more advanced versions as I progress.</p>
       <p>Everything runs as a plain HTML page in any desktop or mobile browser, using ABC notation to display music (a much simpler format than MusicXML for straightforward use cases like these).</p>
     </div>
@@ -146,8 +202,8 @@
         </a>
       </li>
       <li>
-        <a href="melodic-dictation.html">
-          Melodic Dictation (beta) <span style="font-weight:400;color:#7a7268;">(two measures, varied rhythms)</span>
+        <a class="beta" href="melodic-dictation.html">
+          Melodic Dictation (beta) <span class="meta">(two measures, varied rhythms)</span>
           <span class="arrow">→</span>
         </a>
       </li>
