@@ -18,7 +18,6 @@
        --muted       #7c8595   footer / secondary
     */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; }
 
     body {
       background: radial-gradient(120% 80% at 50% 0%, #f9fafb 0%, #eef1f5 55%, #e8ecf2 100%);
@@ -69,29 +68,6 @@
       height: 2px;
       background: linear-gradient(90deg, #c8922a, rgba(200,146,42,0));
       margin-bottom: 32px;
-    }
-
-    .blurb {
-      font-size: 15px;
-      line-height: 1.75;
-      color: #2c333f;
-      margin-bottom: 48px;
-    }
-
-    .blurb p + p {
-      margin-top: 12px;
-    }
-
-    .blurb a {
-      color: #a8741a;
-      text-decoration: none;
-      border-bottom: 1px solid rgba(200,146,42,0.4);
-      transition: border-color 0.2s, color 0.2s;
-    }
-
-    .blurb a:hover {
-      color: #c8922a;
-      border-bottom-color: #c8922a;
     }
 
     .tools-label {
@@ -161,6 +137,29 @@
       transform: translateX(4px);
     }
 
+    .blurb {
+      font-size: 15px;
+      line-height: 1.75;
+      color: #2c333f;
+      margin-top: 48px;
+    }
+
+    .blurb p + p {
+      margin-top: 12px;
+    }
+
+    .blurb a {
+      color: #a8741a;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(200,146,42,0.4);
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .blurb a:hover {
+      color: #c8922a;
+      border-bottom-color: #c8922a;
+    }
+
     footer {
       margin-top: 56px;
       font-size: 12px;
@@ -180,12 +179,6 @@
       <h1 class="title">Custom Progressive Ear Training Tools</h1>
     </div>
     <div class="divider"></div>
-
-    <div class="blurb">
-      <p>Welcome! These are custom ear training tools I built for my own studies. After finding that the available apps were all falling short in one way or another, I decided to make my own with <a href="https://claude.ai">claude.ai</a>. The tools are also based on suggestions from my piano teacher.</p>
-      <p>For now these tools are simple — limited in rhythmic and harmonic complexity. I'll update them or add more advanced versions as I progress.</p>
-      <p>Everything runs as a plain HTML page in any desktop or mobile browser, using ABC notation to display music (a much simpler format than MusicXML for straightforward use cases like these).</p>
-    </div>
 
     <p class="tools-label">Available Tools</p>
     <ul class="tool-list">
@@ -208,6 +201,12 @@
         </a>
       </li>
     </ul>
+
+    <div class="blurb">
+      <p>Welcome! These are custom ear training tools I built for my own studies. After finding that the available apps were all falling short in one way or another, I decided to make my own with <a href="https://claude.ai">claude.ai</a>. The tools are also based on suggestions from my piano teacher.</p>
+      <p>For now these tools are simple — limited in rhythmic and harmonic complexity. I'll update them or add more advanced versions as I progress.</p>
+      <p>Everything runs as a plain HTML page in any desktop or mobile browser, using ABC notation to display music (a much simpler format than MusicXML for straightforward use cases like these).</p>
+    </div>
 
     <footer>Built with claude.ai · ABC notation · No frameworks</footer>
   </div>
