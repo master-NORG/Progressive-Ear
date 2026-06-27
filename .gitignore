@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs and env files
+*.log
+.env
+.env.local
+
+# Build output
+dist/
+build/
