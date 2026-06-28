@@ -1078,11 +1078,11 @@ function App() {
     }
   }, [snd, stop]);
 
-  // Play just the lowest note of the chord — a reference pitch for sight-reading.
+  // Play just the first note of the melody — a reference pitch for sight-reading.
   const playFirst = useCallback(async () => {
     if (!item || !instRef.current || snd === "loading") return;
     await Tone.start();
-    instRef.current.triggerAttackRelease(item.chordToneTones[0], 1.3, Tone.now() + 0.03, 0.9);
+    instRef.current.triggerAttackRelease(item.melTones[0], 1.3, Tone.now() + 0.03, 0.9);
   }, [item, snd]);
 
   // ── Derived state ──────────────────────────────────────────
