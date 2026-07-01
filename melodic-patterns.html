@@ -208,7 +208,7 @@
             box-shadow: 0 4px 24px rgba(0,0,0,0.3);
         }
 
-        #notation { min-height: 200px; }
+        #notation { min-height: 200px; display: block; width: 100%; }
 
         /* abcjs uses currentColor for SVG fills/strokes, which inherits the body's
            near-white text colour. Reset it to black inside the light staff area. */
@@ -217,9 +217,8 @@
         /* Slightly smaller fingering numbers */
         .notation-container .abcjs-annotation { font-size: 0.78em !important; }
     
-        /* Mobile: contain wide notation within its card */
-        .notation-container { overflow-x: auto; }
-        #notation { max-width: 100%; }
+        /* Mobile: let the notation SVG scale to fit instead of being clipped */
+        #notation svg { width: 100%; height: auto; }
     </style>
 </head>
 <body>
@@ -714,12 +713,25 @@ ${bassLine2} |]
             const selectedKey = document.getElementById('keySelect').value;
             const notation    = createNotation(activePatterns, selectedKey);
 
+            // Fit the staff width to the actual available space instead of
+            // always laying out for a 900px desktop staff. This keeps note
+            // glyphs at a readable size on phones by wrapping to more lines
+            // rather than shrinking everything down.
+            const container   = document.querySelector('.notation-container');
+            const cStyle       = getComputedStyle(container);
+            const availWidth   = container.clientWidth
+                - parseFloat(cStyle.paddingLeft)
+                - parseFloat(cStyle.paddingRight);
+            const staffwidth   = Math.max(280, Math.round(availWidth));
+            const isNarrow     = staffwidth < 500;
+
             ABCJS.renderAbc('notation', notation, {
                 add_classes: true,
-                staffwidth: 900,
+                responsive: 'resize',
+                staffwidth: staffwidth,
                 scale: 1.1,
                 wrap: {
-                    preferredMeasuresPerLine: 4,
+                    preferredMeasuresPerLine: isNarrow ? 1 : 4,
                     minSpacing: 1.6,
                     maxSpacing: 2.4,
                     lastLineLimit: 0.8
@@ -730,6 +742,14 @@ ${bassLine2} |]
                 paddingright: 20
             });
         }
+
+        // Re-render on resize/orientation change so the layout stays fitted
+        // (debounced so it doesn't refire on every pixel while resizing).
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(showNotation, 200);
+        });
 
         // ─── Event listeners ─────────────────────────────────────────────────────────
         document.getElementById('reshuffleBtn').addEventListener('click', showNotation);
