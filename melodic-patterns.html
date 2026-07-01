@@ -169,6 +169,9 @@
         .toggle-btn:hover { border-color: rgba(200,146,42,0.55); color: var(--text); }
         .toggle-btn.active:hover { background-color: rgba(200,146,42,0.28); color: #9a6a16; }
 
+        .leger-grid { display: flex; flex-wrap: wrap; gap: 6px; max-width: 300px; }
+        .toggle-btn.leger-btn { padding: 7px 12px; font-size: 12px; }
+
         .divider {
             width: 1px;
             background-color: var(--border);
@@ -280,25 +283,25 @@
                     <input type="checkbox" class="pattern-checkbox" id="pat0" value="0" checked>
                     <label class="pattern-label" for="pat0">Climb</label>
 
-                    <input type="checkbox" class="pattern-checkbox" id="pat1" value="1">
+                    <input type="checkbox" class="pattern-checkbox" id="pat1" value="1" checked>
                     <label class="pattern-label" for="pat1">Arc</label>
 
-                    <input type="checkbox" class="pattern-checkbox" id="pat2" value="2">
+                    <input type="checkbox" class="pattern-checkbox" id="pat2" value="2" checked>
                     <label class="pattern-label" for="pat2">Upbeat</label>
 
-                    <input type="checkbox" class="pattern-checkbox" id="pat3" value="3">
+                    <input type="checkbox" class="pattern-checkbox" id="pat3" value="3" checked>
                     <label class="pattern-label" for="pat3">Spring</label>
 
-                    <input type="checkbox" class="pattern-checkbox" id="pat4" value="4">
+                    <input type="checkbox" class="pattern-checkbox" id="pat4" value="4" checked>
                     <label class="pattern-label" for="pat4">Step Back</label>
 
-                    <input type="checkbox" class="pattern-checkbox" id="pat5" value="5">
+                    <input type="checkbox" class="pattern-checkbox" id="pat5" value="5" checked>
                     <label class="pattern-label" for="pat5">Question</label>
 
-                    <input type="checkbox" class="pattern-checkbox" id="pat6" value="6">
+                    <input type="checkbox" class="pattern-checkbox" id="pat6" value="6" checked>
                     <label class="pattern-label" for="pat6">Skip-Step</label>
 
-                    <input type="checkbox" class="pattern-checkbox" id="pat7" value="7">
+                    <input type="checkbox" class="pattern-checkbox" id="pat7" value="7" checked>
                     <label class="pattern-label" for="pat7">Neighbour</label>
                 </div>
             </div>
@@ -308,6 +311,18 @@
             <div class="control-section">
                 <div class="control-label">Inversion</div>
                 <button class="toggle-btn active" id="inversionToggle">↕ Inversion on</button>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="control-section">
+                <div class="control-label">Practice Leger Lines Only</div>
+                <div class="leger-grid">
+                    <button class="toggle-btn leger-btn" data-zone="aboveTreble">Above Treble</button>
+                    <button class="toggle-btn leger-btn" data-zone="belowTreble">Below Treble</button>
+                    <button class="toggle-btn leger-btn" data-zone="aboveBass">Above Bass</button>
+                    <button class="toggle-btn leger-btn" data-zone="belowBass">Below Bass</button>
+                </div>
             </div>
 
             <div class="divider"></div>
@@ -500,6 +515,43 @@
             return fullPool.filter(n => keyLetters.includes(getLetterName(n)));
         }
 
+        // ─── Leger-line practice ───────────────────────────────────────────────────────
+        // Diatonic value: C4 = 0, each diatonic step = ±1 over letters C D E F G A B.
+        const DIA_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+        // Convert a diatonic value back to an ABC note token (matches the pools above).
+        function diatonicToABC(v) {
+            const letter = DIA_LETTERS[((v % 7) + 7) % 7];
+            const octave = 4 + Math.floor(v / 7);
+            if (octave <= 4) return letter + ','.repeat(4 - octave);
+            return letter.toLowerCase() + "'".repeat(octave - 5);
+        }
+
+        // Ascending diatonic ABC pool spanning [loVal, hiVal] inclusive, filtered to key.
+        function buildZonePool(loVal, hiVal, keyLetters) {
+            const pool = [];
+            for (let v = loVal; v <= hiVal; v++) {
+                const letter = DIA_LETTERS[((v % 7) + 7) % 7];
+                if (keyLetters.includes(letter)) pool.push(diatonicToABC(v));
+            }
+            return pool;
+        }
+
+        // Each zone runs from the nearest 3 staff notes out to the 3rd leger line.
+        // Values are diatonic (C4 = 0). clef decides which staff the bar renders on.
+        const LEGER_ZONES = {
+            aboveTreble: { clef: 'treble', lo:   8, hi:  16 },  // D5 … E6
+            belowTreble: { clef: 'treble', lo:  -4, hi:   4 },  // F3 … G4
+            aboveBass:   { clef: 'bass',   lo:  -4, hi:   4 },  // F3 … G4
+            belowBass:   { clef: 'bass',   lo: -16, hi:  -8 },  // A1 … B2
+        };
+
+        const legerState = { aboveTreble: false, belowTreble: false, aboveBass: false, belowBass: false };
+
+        function getActiveZones() {
+            return Object.keys(LEGER_ZONES).filter(z => legerState[z]);
+        }
+
         function getActivePatterns() {
             return Array.from(document.querySelectorAll('.pattern-checkbox:checked'))
                         .map(cb => PATTERNS[parseInt(cb.value)]);
@@ -680,6 +732,9 @@
             const trebleBars = [];
             const bassBars   = [];
 
+            const activeZones = getActiveZones();
+            const legerMode   = activeZones.length > 0;
+
             // Pick 2 random bar indices to show without fingering numbers.
             const barIndices = Array.from({length: 8}, (_, i) => i);
             const noFingerBars = new Set(barIndices.sort(() => Math.random() - 0.5).slice(0, 2));
@@ -687,15 +742,25 @@
             for (let bar = 0; bar < 8; bar++) {
                 const pattern  = pickRandom(activePatterns);
                 const invert   = inversionEnabled && Math.random() < 0.5;
-                const useTreble = Math.random() < 0.5;
                 const showFinger = !noFingerBars.has(bar);
 
-                if (useTreble) {
-                    trebleBars.push(buildBarABC(pattern, diatonicTreble, invert, false, showFinger));
-                    bassBars.push('z4');
+                if (legerMode) {
+                    // Each measure independently picks one of the active zones.
+                    const zone     = LEGER_ZONES[pickRandom(activeZones)];
+                    const zonePool = buildZonePool(zone.lo, zone.hi, keyLetters);
+                    const isBass   = zone.clef === 'bass';
+                    const barABC   = buildBarABC(pattern, zonePool, invert, isBass, showFinger);
+                    if (isBass) { trebleBars.push('z4'); bassBars.push(barABC); }
+                    else        { trebleBars.push(barABC); bassBars.push('z4'); }
                 } else {
-                    trebleBars.push('z4');
-                    bassBars.push(buildBarABC(pattern, diatonicBass, invert, true, showFinger));
+                    const useTreble = Math.random() < 0.5;
+                    if (useTreble) {
+                        trebleBars.push(buildBarABC(pattern, diatonicTreble, invert, false, showFinger));
+                        bassBars.push('z4');
+                    } else {
+                        trebleBars.push('z4');
+                        bassBars.push(buildBarABC(pattern, diatonicBass, invert, true, showFinger));
+                    }
                 }
             }
 
@@ -793,6 +858,15 @@ ${bassLine2} |]
             const btn = document.getElementById('inversionToggle');
             btn.textContent = inversionEnabled ? '↕ Inversion on' : '↕ Inversion off';
             btn.classList.toggle('active', inversionEnabled);
+        });
+
+        // Leger-line zone toggles — like the other options, they apply on Reshuffle.
+        document.querySelectorAll('.leger-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const zone = btn.dataset.zone;
+                legerState[zone] = !legerState[zone];
+                btn.classList.toggle('active', legerState[zone]);
+            });
         });
 
         // ─── Initial render ───────────────────────────────────────────────────────────
